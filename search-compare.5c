@@ -1,0 +1,246 @@
+#!/usr/bin/nickle
+
+autoload Sort;
+autoload PRNG;
+
+int
+linear_search(int[] array, int key)
+{
+	for (int i = 0; i < dim(array); i++)
+		if (key <= array[i])
+			return i;
+	return dim(array);
+}
+
+void
+fail(string which, int key, int b, int correct, int value)
+{
+	printf("%s failed %d with key %d correct is %d value %d\n", which, b, key, correct, value);
+}
+
+int
+wiki_search(int[] array, int key, int correct)
+{
+	int b = 0;
+	int e = dim(array) - 1;
+	int cmp = 0;
+
+	while (b <= e) {
+		int k = (b + e) >> 1;
+		cmp++;
+		if (array[k] < key)
+			b = k + 1;
+		else {
+			cmp++;
+			if (array[k] > key)
+				e = k - 1;
+			else {
+				b = k;
+				break;
+			}
+		}
+	}
+	if (b != correct)
+		fail("wiki", key, b, correct, array[correct]);
+	return cmp;
+}
+
+int classic_less = 0;
+int classic_equal = 0;
+int classic_more = 0;
+
+/*
+ * Classic search
+ */
+int
+classic_search(int[] array, int key, int correct)
+{
+	int b = 0;
+	int e = dim(array);
+	int cmp = 0;
+
+	/* Invarient preserved during search:
+	 *
+	 * array[b] <= key < array[e]
+	 */
+
+	/*
+	 * Terminate when the length of the search space is 1 or less
+	 *
+	 * Using b < e is a common mistake here and causes the loop to
+	 * not terminate when e = b + 1 and key >= array[b]
+	 */
+	while (e - b > 1) {
+		int k = (b + e) >> 1;
+		cmp++;
+		if (key < array[k])
+			e = k;		/* key < array[e] */
+		else
+			b = k;		/* array[b] <= key */
+	}
+
+	if (array[b] < key)
+		classic_less++;
+	else if (array[b] == key)
+		classic_equal++;
+	else
+		classic_more++;
+
+	/*
+	 * Correct the search to ensure the returned location is not
+	 * before the key. This is required only if the miss case
+	 * is required to have the discovered location have a
+	 * consistent relation to the key.
+	 */
+	cmp++;
+	if (array[b] < key)
+		b++;
+	if (b != correct)
+		fail("classic", key, b, correct, array[correct]);
+	return cmp;
+}
+
+/*
+ * Reduce the search space faster by taking advantage of the knowledge
+ * that the compare gives us
+ */
+
+int
+new_search(int[] array, int key, int correct)
+{
+	/* Requires signed values to support dim(array) == 0 */
+	int b = 0;
+	int e = dim(array) - 1;
+	int cmp = 0;
+
+	/* Invarient preserved during the search:
+	 *
+	 * array[b] <= key <= array[e]
+	 */
+
+	/*
+	 * Terminate when the search space is empty.
+	 *
+	 * This always halts because the search space is always
+	 * shrunk at each iteration
+	 */
+	while (b <= e) {
+		int k = (b + e) >> 1;
+		cmp++;
+		if (array[k] < key)
+			b = k + 1;
+		else
+			e = k - 1;
+	}
+	if (b != correct)
+		fail("new", key, b, correct, array[correct]);
+	return cmp;
+}
+
+/*
+ * Take the new search and bias the end value by one so that it is
+ * always non-negative
+ */
+int
+new_unsigned_search(int[] array, int key, int correct)
+{
+	int b = 0;
+	int e = dim(array);
+	int cmp = 0;
+
+	while (b < e) {
+		int k = (b + e - 1) >> 1;
+		cmp++;
+		if (array[k] < key)
+			b = k + 1;
+		else
+			e = k;
+	}
+	if (b != correct)
+		fail("new_unsigned", key, b, correct, array[correct]);
+	return cmp;
+}
+
+/*
+ * Search from wikipedia labeled 'leftmost'
+ */
+
+int
+leftmost_search(int[] array, int key, int correct)
+{
+	int b = 0;
+	int e = dim(array);
+	int cmp = 0;
+
+	while (b < e) {
+		int k = (b + e) >> 1;
+		cmp++;
+		if (array[k] < key)
+			b = k + 1;
+		else
+			e = k;
+	}
+	if (b != correct)
+		fail("leftmost", key, b, correct, array[correct]);
+	return cmp;
+}
+
+
+void
+do_searches(int min_size, int max_size, int tries)
+{
+	typedef struct {
+		string	name;
+		int(int[] array, int key, int correct) search;
+		int compares;
+	} search_t;
+
+	search_t[] searches = {
+		{
+			.name = "classic",
+			.search = classic_search,
+			.compares = 0
+		},
+		{
+			.name = "wiki",
+			.search = wiki_search,
+			.compares = 0
+		},
+		{
+			.name = "new",
+			.search = new_search,
+			.compares = 0
+		},
+		{
+			.name = "new_unsigned",
+			.search = new_unsigned_search,
+			.compares = 0
+		},
+		{
+			.name = "leftmost",
+			.search = leftmost_search,
+			.compares = 0
+		},
+	};
+
+	for (int size = min_size; size < max_size; size++) {
+		int[] array = (int[size]) { [i] = PRNG::randbits(16) };
+
+		Sort::qsort(&array, (bool func(poly a, poly b) = a > b));
+
+		for (int i = 1; i < dim(array); i++)
+			if (array[i-1] == array[i])
+				array[i]++;
+		for (int t = 0; t < tries; t++) {
+			int key = PRNG::randbits(16);
+			int correct = linear_search(array, key);
+			for (int s = 0; s < dim(searches); s++)
+				searches[s].compares += searches[s].search(array, key, correct);
+		}
+	}
+	for (int s = 0; s < dim(searches); s++)
+		printf("%-20s %d\n", searches[s].name, searches[s].compares);
+	printf("classic less %d equal %d more %d\n", classic_less, classic_equal, classic_more);
+}
+
+do_searches(10, 1000, 100);
