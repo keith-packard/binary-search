@@ -88,6 +88,38 @@ def classic_search(array, key, correct):
         fail("classic", key, b, correct, array[correct])
     return cmp
 
+#
+# Classic search to find matching entries only
+#
+
+def classic_find_search(array, key, correct):
+    b = 0
+    e = len(array)
+    cmp = 0
+
+    # Invarient preserved during search:
+    #
+    # array[b] <= key < array[e]
+    #
+
+    # Terminate when the length of the search space is 1 or less
+    #
+    # Using b < e is a common mistake here and causes the loop to
+    # not terminate when e = b + 1 and key >= array[b]
+    #
+
+    while e - b > 1:
+        k = (b + e) >> 1
+        cmp += 1
+        if key < array[k]:
+            e = k               # key < array[e]
+        else:
+            b = k               # array[b] <= key
+
+    if b != correct and correct < len(array) and key == array[correct]:
+        fail("classic", key, b, correct, array[correct])
+    return cmp
+
 # Reduce the search space faster by taking advantage of the knowledge
 # that the compare gives us
 
@@ -166,6 +198,11 @@ def do_searches(min_size, max_size, tries):
             'compares': 0
         },
         {
+            'name': "classic-find",
+            'search': classic_find_search,
+            'compares': 0
+        },
+        {
             'name': "wiki",
             'search': wiki_search,
             'compares': 0
@@ -223,4 +260,4 @@ def do_searches(min_size, max_size, tries):
     print('')
     print("classic less %d equal %d more %d" % (classic_less, classic_equal, classic_more))
 
-do_searches(1, 1030, 512)
+do_searches(1, 1024, 512)
