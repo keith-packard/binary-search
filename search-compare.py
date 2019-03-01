@@ -176,7 +176,7 @@ def do_searches(min_size, max_size, tries):
             'compares': 0
         },
         {
-            'name': "new_unsigned",
+            'name': "new-unsigned",
             'search': new_unsigned_search,
             'compares': 0
         },
@@ -212,7 +212,7 @@ def do_searches(min_size, max_size, tries):
                 search['compares'] += search['search'](array, key, correct);
         print("%5d" % size, end='')
         for search in searches:
-            print("%13d" % (search['compares']), end='')
+            print("%13.1f" % (search['compares'] / tries), end='')
             totals[search['name']] += search['compares']
             search['compares'] = 0
         print("")
@@ -223,4 +223,4 @@ def do_searches(min_size, max_size, tries):
     print('')
     print("classic less %d equal %d more %d" % (classic_less, classic_equal, classic_more))
 
-do_searches(1, 1000, 100)
+do_searches(1, 1030, 512)
